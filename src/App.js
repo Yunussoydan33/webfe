@@ -88,12 +88,14 @@ const App = () => {
           <button onClick={() => setJoined(true)}>Odaya Gir</button>
         </div>
       ) : (
-        <div className="video-container">
+        <div>
           <h1>Oda: {roomId}</h1>
-          <video ref={userVideo} autoPlay playsInline muted className="user-video" />
-          {peers.map((peer, index) => (
-            <Video key={index} peer={peer} />
-          ))}
+          <div className="video-container">
+            <video ref={userVideo} autoPlay playsInline muted className="user-video" />
+            {peers.map((peer, index) => (
+              <Video key={index} peer={peer} />
+            ))}
+          </div>
           <Controls stream={stream} setStream={setStream} />
         </div>
       )}
@@ -109,7 +111,7 @@ const Video = ({ peer }) => {
       ref.current.srcObject = stream;
     });
     return () => {
-      peer.destroy(); // Peer bağlantısını temizle
+      peer.destroy();
     };
   }, [peer]);
 

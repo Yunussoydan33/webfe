@@ -55,3 +55,26 @@ button {
 button:hover {
   background-color: #0056b3;
 }
+.video-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+  width: 100%;
+  max-width: 100vw;
+  padding: 20px;
+  justify-content: center;
+}
+
+.user-video, .peer-video {
+  width: 100%;
+  max-width: 300px;
+  height: auto;
+  border-radius: 10px;
+  background: black;
+}
+
+@media screen and (max-width: 768px) {
+  .video-container {
+    grid-template-columns: repeat(2, 1fr); /* Küçük ekranlarda 2x2 düzen */
+  }
+}
