@@ -1,15 +1,15 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 
-const Controls = ({ stream, setStream }) => {
+const Controls = ({ stream, setStream, peersRef }) => {
   const [isMicOn, setIsMicOn] = useState(true);
   const [isCameraOn, setIsCameraOn] = useState(true);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
-  let screenStream = null;
+  const screenStreamRef = useRef(null);
 
   // Mikrofon Aç/Kapa
   const toggleMic = () => {
     if (stream) {
-      stream.getAudioTracks()[0].enabled = !isMicOn;
+      stream.getAudioTracks().forEach(track => (track.enabled = !track.enabled));
       setIsMicOn(!isMicOn);
     }
   };
@@ -17,7 +17,7 @@ const Controls = ({ stream, setStream }) => {
   // Kamera Aç/Kapa
   const toggleCamera = () => {
     if (stream) {
-      stream.getVideoTracks()[0].enabled = !isCameraOn;
+      stream.getVideoTracks().forEach(track => (track.enabled = !track.enabled));
       setIsCameraOn(!isCameraOn);
     }
   };
@@ -26,12 +26,26 @@ const Controls = ({ stream, setStream }) => {
   const toggleScreenShare = async () => {
     if (!isScreenSharing) {
       try {
-        screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+        const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+
+        // Yeni ekran paylaşımı akışını kaydet
+        screenStreamRef.current = screenStream;
         setStream(screenStream);
 
+        // Tüm peer'lerdeki videoyu değiştir
+        if (peersRef?.current) {
+          peersRef.current.forEach(({ peer }) => {
+            peer.replaceTrack(
+              stream.getVideoTracks()[0], // Mevcut kamerayı al
+              screenStream.getVideoTracks()[0], // Ekran paylaşımına geçir
+              stream
+            );
+          });
+        }
+
+        // Kullanıcı ekran paylaşımını durdurduğunda eski akışa geri dön
         screenStream.getVideoTracks()[0].onended = () => {
-          setStream(stream);
-          setIsScreenSharing(false);
+          stopScreenShare();
         };
 
         setIsScreenSharing(true);
@@ -39,9 +53,28 @@ const Controls = ({ stream, setStream }) => {
         console.error("Ekran paylaşımı hatası:", error);
       }
     } else {
-      setStream(stream);
-      setIsScreenSharing(false);
+      stopScreenShare();
     }
+  };
+
+  // Ekran Paylaşımını Durdur ve Kameraya Geri Dön
+  const stopScreenShare = () => {
+    if (screenStreamRef.current) {
+      screenStreamRef.current.getTracks().forEach(track => track.stop());
+    }
+
+    if (peersRef?.current) {
+      peersRef.current.forEach(({ peer }) => {
+        peer.replaceTrack(
+          screenStreamRef.current?.getVideoTracks()[0], // Ekran paylaşımından dönerken
+          stream.getVideoTracks()[0], // Kameraya geri dön
+          screenStreamRef.current
+        );
+      });
+    }
+
+    setStream(stream);
+    setIsScreenSharing(false);
   };
 
   return (

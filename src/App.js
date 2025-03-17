@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import Peer from "simple-peer";
 import Controls from "./Controls";
-import "./App.css"; // Yeni CSS dosyamız
+import "./App.css";
 
 const socket = io("https://webbb-f474.onrender.com");
 
@@ -22,6 +22,7 @@ const App = () => {
       userVideo.current.srcObject = userStream;
 
       socket.emit("join-room", roomId);
+
       socket.on("other-users", (users) => {
         const peersArr = [];
         users.forEach((userId) => {
@@ -39,9 +40,25 @@ const App = () => {
       });
 
       socket.on("receive-returned-signal", (data) => {
-        const item = peersRef.current.find((p) => p.peerId === data.id);
-        if (item) item.peer.signal(data.signal);
+        const peerObj = peersRef.current.find((p) => p.peerId === data.id);
+        if (peerObj) peerObj.peer.signal(data.signal);
       });
+
+      socket.on("user-disconnected", (userId) => {
+        const peerObj = peersRef.current.find((p) => p.peerId === userId);
+        if (peerObj) {
+          peerObj.peer.destroy();
+        }
+        peersRef.current = peersRef.current.filter((p) => p.peerId !== userId);
+        setPeers((prevPeers) => prevPeers.filter((p) => p.peer !== peerObj?.peer));
+      });
+
+      return () => {
+        socket.off("other-users");
+        socket.off("user-joined");
+        socket.off("receive-returned-signal");
+        socket.off("user-disconnected");
+      };
     });
   }, [joined, roomId]);
 
@@ -91,6 +108,9 @@ const Video = ({ peer }) => {
     peer.on("stream", (stream) => {
       ref.current.srcObject = stream;
     });
+    return () => {
+      peer.destroy(); // Peer bağlantısını temizle
+    };
   }, [peer]);
 
   return <video ref={ref} autoPlay playsInline className="peer-video" />;
