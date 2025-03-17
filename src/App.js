@@ -15,6 +15,7 @@ const App = () => {
   const peersRef = useRef([]);
   const [messages, setMessages] = useState([]);
   const [message, setMessage] = useState("");
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   useEffect(() => {
     if (!joined) return;
@@ -86,6 +87,10 @@ const App = () => {
     return peer;
   }
 
+  const toggleChat = () => {
+    setIsChatOpen(!isChatOpen);
+  };
+  
   const sendMessage = () => {
     if (message.trim()) {
       socket.emit("send-message", message);
@@ -112,30 +117,39 @@ const App = () => {
             ))}
           </div>
           <Controls stream={stream} setStream={setStream} />
-          <div className="chat-box">
-  <div className="messages">
-    {messages.map((msg, index) => (
-      <p key={index} className={msg.startsWith("Sen:") ? "user-message" : "other-message"}>
-        {msg}
-      </p>
-    ))}
-  </div>
-  <div className="chat-input-container">
-    <input
-      type="text"
-      className="chat-input"
-      value={message}
-      onChange={(e) => setMessage(e.target.value)}
-      placeholder="Mesaj yaz..."
-    />
-    <button className="chat-send-button" onClick={sendMessage}>Gönder</button>
-  </div>
-</div>
-
+  
+          {/* Mesajlaşma Kutusu */}
+          <div className={`chat-box ${isChatOpen ? "open" : "closed"}`}>
+            <button className="chat-toggle-button" onClick={toggleChat}>
+              {isChatOpen ? "✖" : "💬"}
+            </button>
+            {isChatOpen && (
+              <>
+                <div className="messages">
+                  {messages.map((msg, index) => (
+                    <p key={index} className={msg.startsWith("Sen:") ? "user-message" : "other-message"}>
+                      {msg}
+                    </p>
+                  ))}
+                </div>
+                <div className="chat-input-container">
+                  <input
+                    type="text"
+                    className="chat-input"
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    placeholder="Mesaj yaz..."
+                  />
+                  <button className="chat-send-button" onClick={sendMessage}>Gönder</button>
+                </div>
+              </>
+            )}
           </div>
+        </div>
       )}
     </div>
   );
+  
 };
 
 const Video = ({ peer }) => {
