@@ -24,24 +24,24 @@ const App = () => {
       socket.emit("join-room", roomId);
 
       socket.on("other-users", (users) => {
-        const peersArr = [];
         users.forEach((userId) => {
           const peer = createPeer(userId, socket.id, userStream);
           peersRef.current.push({ peerId: userId, peer });
-          peersArr.push(peer);
+          setPeers((prevPeers) => [...prevPeers, { peer, id: userId }]);
         });
-        setPeers(peersArr);
       });
 
       socket.on("user-joined", (data) => {
         const peer = addPeer(data.signal, data.callerId, userStream);
         peersRef.current.push({ peerId: data.callerId, peer });
-        setPeers((prevPeers) => [...prevPeers, peer]);
+        setPeers((prevPeers) => [...prevPeers, { peer, id: data.callerId }]);
       });
 
       socket.on("receive-returned-signal", (data) => {
         const peerObj = peersRef.current.find((p) => p.peerId === data.id);
-        if (peerObj) peerObj.peer.signal(data.signal);
+        if (peerObj) {
+          peerObj.peer.signal(data.signal);
+        }
       });
 
       socket.on("user-disconnected", (userId) => {
@@ -50,7 +50,7 @@ const App = () => {
           peerObj.peer.destroy();
         }
         peersRef.current = peersRef.current.filter((p) => p.peerId !== userId);
-        setPeers((prevPeers) => prevPeers.filter((p) => p.peer !== peerObj?.peer));
+        setPeers((prevPeers) => prevPeers.filter((p) => p.id !== userId));
       });
 
       return () => {
@@ -64,18 +64,22 @@ const App = () => {
 
   function createPeer(userToSignal, callerId, stream) {
     const peer = new Peer({ initiator: true, trickle: false, stream });
+
     peer.on("signal", (signal) => {
       socket.emit("send-signal", { userToSignal, callerId, signal });
     });
+
     return peer;
   }
 
   function addPeer(incomingSignal, callerId, stream) {
     const peer = new Peer({ initiator: false, trickle: false, stream });
     peer.signal(incomingSignal);
+
     peer.on("signal", (signal) => {
       socket.emit("return-signal", { signal, callerId });
     });
+
     return peer;
   }
 
@@ -92,8 +96,8 @@ const App = () => {
           <h1>Oda: {roomId}</h1>
           <div className="video-container">
             <video ref={userVideo} autoPlay playsInline muted className="user-video" />
-            {peers.map((peer, index) => (
-              <Video key={index} peer={peer} />
+            {peers.map(({ peer, id }) => (
+              <Video key={id} peer={peer} />
             ))}
           </div>
           <Controls stream={stream} setStream={setStream} />
@@ -110,6 +114,7 @@ const Video = ({ peer }) => {
     peer.on("stream", (stream) => {
       ref.current.srcObject = stream;
     });
+
     return () => {
       peer.destroy();
     };
