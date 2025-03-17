@@ -13,6 +13,8 @@ const App = () => {
   const [stream, setStream] = useState(null);
   const userVideo = useRef();
   const peersRef = useRef([]);
+  const [messages, setMessages] = useState([]);
+  const [message, setMessage] = useState("");
 
   useEffect(() => {
     if (!joined) return;
@@ -53,35 +55,44 @@ const App = () => {
         setPeers((prevPeers) => prevPeers.filter((p) => p.id !== userId));
       });
 
+      socket.on("receive-message", (msg) => {
+        setMessages((prev) => [...prev, msg]);
+      });
+
       return () => {
         socket.off("other-users");
         socket.off("user-joined");
         socket.off("receive-returned-signal");
         socket.off("user-disconnected");
+        socket.off("receive-message");
       };
     });
   }, [joined, roomId]);
 
   function createPeer(userToSignal, callerId, stream) {
     const peer = new Peer({ initiator: true, trickle: false, stream });
-
     peer.on("signal", (signal) => {
       socket.emit("send-signal", { userToSignal, callerId, signal });
     });
-
     return peer;
   }
 
   function addPeer(incomingSignal, callerId, stream) {
     const peer = new Peer({ initiator: false, trickle: false, stream });
     peer.signal(incomingSignal);
-
     peer.on("signal", (signal) => {
       socket.emit("return-signal", { signal, callerId });
     });
-
     return peer;
   }
+
+  const sendMessage = () => {
+    if (message.trim()) {
+      socket.emit("send-message", message);
+      setMessages((prev) => [...prev, `Sen: ${message}`]);
+      setMessage("");
+    }
+  };
 
   return (
     <div className="container">
@@ -101,7 +112,27 @@ const App = () => {
             ))}
           </div>
           <Controls stream={stream} setStream={setStream} />
-        </div>
+          <div className="chat-box">
+  <div className="messages">
+    {messages.map((msg, index) => (
+      <p key={index} className={msg.startsWith("Sen:") ? "user-message" : "other-message"}>
+        {msg}
+      </p>
+    ))}
+  </div>
+  <div className="chat-input-container">
+    <input
+      type="text"
+      className="chat-input"
+      value={message}
+      onChange={(e) => setMessage(e.target.value)}
+      placeholder="Mesaj yaz..."
+    />
+    <button className="chat-send-button" onClick={sendMessage}>Gönder</button>
+  </div>
+</div>
+
+          </div>
       )}
     </div>
   );
